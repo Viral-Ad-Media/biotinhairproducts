@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Biotin Hair Products
 
-## Getting Started
+Rebuild of biotinhairproducts.com (formerly WordPress) with Next.js 16, Tailwind CSS 4, Neon Postgres (Drizzle ORM) and Better Auth.
 
-First, run the development server:
+## What's here
+
+- **Public site:** home, 17 articles at `/<slug>`, category pages at `/category/<slug>`, `/blog`, sitemap and robots.
+- **Admin:** `/admin` (Better Auth email + password). Only emails listed in `ADMIN_EMAILS` can create an account. Admins can create, edit, draft and delete posts (Markdown).
+- **Content:** starter posts live in `content/posts/*.md`. With a database, they're imported once by `npm run db:seed` and then edited in `/admin`. Without `DATABASE_URL`, the site serves the Markdown files directly (handy for previews).
+- **Images:** `public/uploads/` holds the original uploads recovered from the old site, each checked to be a real image with no embedded code. Old `/wp-content/uploads/...` links redirect here.
+- **Redirects:** old WordPress URLs (dated permalinks, duplicate posts, categories, tags) 301 to the new pages in `next.config.ts`. Any `*.php` request goes to the home page.
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, ADMIN_EMAILS
+npm run db:migrate           # create tables in Neon (drizzle/0000_init.sql)
+npm run db:seed              # import the posts in content/posts
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open `/admin/login`, choose "Create your admin account" with an email from `ADMIN_EMAILS`, and sign in.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Note: the drizzle-kit and seed scripts read `.env` (via dotenv); copy your values there too, or export them in your shell.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploying (Vercel)
 
-## Learn More
+Set the same env vars in the project settings (`BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` = your production URL), run the migrate and seed steps once against the production database, and deploy.
 
-To learn more about Next.js, take a look at the following resources:
+## Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The old site was compromised. Nothing from it was carried over except images. Don't copy PHP files or plugins back.
+- The articles were rewritten from the old site's titles and topics because no database backup survived. Product reviews describe each product as its brand does; check them against current labels before relying on them.
