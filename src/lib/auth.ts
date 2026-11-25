@@ -12,7 +12,13 @@ const adminEmails = (process.env.ADMIN_EMAILS ?? "")
 
 export const isAdminEmail = (email: string) => adminEmails.includes(email.toLowerCase());
 
+// BETTER_AUTH_URL wins; on Vercel, fall back to the project's production URL so sign-in works before it's set.
+const baseURL =
+  process.env.BETTER_AUTH_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined);
+
 export const auth = betterAuth({
+  baseURL,
   // Better Auth needs a database; without DATABASE_URL the admin area is simply unavailable.
   database: db
     ? drizzleAdapter(db, {
