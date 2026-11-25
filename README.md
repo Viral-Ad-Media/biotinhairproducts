@@ -26,7 +26,9 @@ Note: the drizzle-kit and seed scripts read `.env` (via dotenv); copy your value
 
 ## Deploying (Vercel)
 
-Set the same env vars in the project settings (`BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` = your production URL), run the migrate and seed steps once against the production database, and deploy.
+Set `BETTER_AUTH_SECRET`, `ADMIN_EMAILS` and (once you have a custom domain) `BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` in the project settings. `DATABASE_URL` comes from the Neon integration. Until `BETTER_AUTH_URL` is set, auth uses the Vercel production URL.
+
+Each build runs `npm run db:deploy` first: it applies pending migrations and, on an empty `post` table, imports `content/posts`. If the database can't be read, public pages fall back to `content/posts` instead of failing the build.
 
 ## Notes
 

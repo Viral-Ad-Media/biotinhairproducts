@@ -40,23 +40,48 @@ export async function readPostFiles(): Promise<Post[]> {
   return posts.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 }
 
-export async function getPublishedPosts(opts: { category?: string; limit?: number } = {}): Promise<Post[]> {
-  if (!db) {
-    const all = (await readPostFiles()).filter((p) => !opts.category || p.category === opts.category);
-    return opts.limit ? all.slice(0, opts.limit) : all;
+/**
+ * Runs a database read for the public site. If the database can't be read (tables not created yet,
+ * database unreachable during a build), logs it and serves the Markdown files instead, so a database
+ * problem never takes the public site or the build down.
+ */
+async function withFileFallback<T>(what: string, query: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+  try {
+    return await query();
+  } catch (err) {
+    const cause = (err as { cause?: { message?: string } })?.cause?.message ?? (err as Error)?.message;
+    console.warn(`[posts] ${what}: database read failed (${cause}); serving content/posts instead.`);
+    return fallback();
   }
+}
+
+async function filePosts(opts: { category?: string; limit?: number }) {
+  const all = (await readPostFiles()).filter((p) => !opts.category || p.category === opts.category);
+  return opts.limit ? all.slice(0, opts.limit) : all;
+}
+
+export async function getPublishedPosts(opts: { category?: string; limit?: number } = {}): Promise<Post[]> {
+  if (!db) return filePosts(opts);
   const where = opts.category
     ? and(eq(schema.post.status, "published"), eq(schema.post.category, opts.category))
     : eq(schema.post.status, "published");
   const q = db.select().from(schema.post).where(where).orderBy(desc(schema.post.publishedAt));
-  return opts.limit ? q.limit(opts.limit) : q;
+  return withFileFallback("getPublishedPosts", async () => (opts.limit ? q.limit(opts.limit) : q), () => filePosts(opts));
 }
 
 export async function getPost(slug: string, { includeDrafts = false } = {}): Promise<Post | null> {
-  if (!db) return (await readPostFiles()).find((p) => p.slug === slug) ?? null;
-  const [row] = await db.select().from(schema.post).where(eq(schema.post.slug, slug)).limit(1);
-  if (!row || (!includeDrafts && row.status !== "published")) return null;
-  return row;
+  const fromFiles = async () => (await readPostFiles()).find((p) => p.slug === slug) ?? null;
+  if (!db) return fromFiles();
+  const database = db;
+  return withFileFallback(
+    "getPost",
+    async () => {
+      const [row] = await database.select().from(schema.post).where(eq(schema.post.slug, slug)).limit(1);
+      if (!row || (!includeDrafts && row.status !== "published")) return null;
+      return row;
+    },
+    fromFiles,
+  );
 }
 
 export async function getAllPostsForAdmin(): Promise<Post[]> {
